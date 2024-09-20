@@ -6,6 +6,7 @@ from scipy import stats
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 import statsmodels.stats.multicomp as mc
+from sklearn.linear_model import LinearRegression
 
 data = {
     125: [2.7, 2.6, 4.6, 3.2, 3.0, 3.8],
@@ -123,7 +124,42 @@ SE = std_dev / np.sqrt(n)
 print(f"Standard Error: {SE:.3f} std_dev / np.sqrt(n)")
 
 # One sided P_value
-# One sided P_value
 p_value = stats.norm.sf(Z)
 print(f"p-value: {p_value:.6f}")
 
+#4.47
+data = {
+    "Brake Horsepower": [225, 212, 229, 222, 219, 278, 246, 237, 233, 224, 223, 230],
+    "rpm": [2000, 1800, 2400, 1900, 1600, 2500, 3000, 3200, 2800, 3400, 1800, 2500],
+    "Road Octane Number": [90, 94, 88, 91, 86, 96, 94, 90, 88, 86, 90, 89],
+    "Compression": [100, 95, 110, 96, 100, 110, 98, 100, 105, 97, 100, 104]
+}
+
+df = pd.DataFrame(data)
+
+# Fit the linear regression model
+model = LinearRegression()
+model.fit(df[['rpm', 'Road Octane Number', 'Compression']],df['Brake Horsepower'])
+
+# Get the coefficients
+coefficients = model.coef_
+intercept = model.intercept_
+print(f"Coefficients: {model.coef_}")
+print(f"Intercept: {model.intercept_}")
+
+# Predict new values
+predicted = model.predict(df[['rpm', 'Road Octane Number', 'Compression']])
+
+# Print the predicted values
+print(f"Coefficients: {coefficients}")
+print(f"Intercept: {intercept}")
+print(f"Predictions: {predicted}")
+
+# Test for significance of regression
+X = df[['rpm', 'Road Octane Number', 'Compression']]
+y = df['Brake Horsepower']
+X = sm.add_constant(X)
+model = sm.OLS(y, X).fit()
+print(model.summary())
+
+print("Only rpm is significant in predicting Brake Horsepower.")
