@@ -1,126 +1,128 @@
-import math
-import random
-import scipy
-import statistics
-import numpy as np
-import scipy.stats
-from scipy import stats
-from scipy.stats import f_oneway
 import pandas as pd
-import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
-import statsmodels.stats.multicomp as mc
+import numpy as np
+from scipy.optimize import minimize
 
-# Updated Data dictionary to include 'Vibration'
-#B is width of support
-#C is number of paperclips
-Data = {
-    'A': [-1, 1, -1, -1, 1, 1, -1, 1],
-    'B': [-1, 1, 1, -1, 1, -1, 1, 1],
-    'C': [-1, 1, -1, 1, -1, 1, 1, 1],
-    'Hangtime': []
+# Updated data with factors coded as 1 and -1
+data = {
+    'A': [-1.0, -1.0, -1.0, -1.0, -1.0,
+          1.0, 1.0, 1.0, 1.0, 1.0,
+          -1.0, -1.0, -1.0, -1.0, -1.0,
+          1.0, 1.0, 1.0, 1.0, 1.0],
+    
+    'B': [-1.0, -1.0, -1.0, -1.0, -1.0,
+          -1.0, -1.0, -1.0, -1.0, -1.0,
+          1.0, 1.0, 1.0, 1.0, 1.0,
+          1.0, 1.0, 1.0, 1.0, 1.0],
+    
+    'Hangtime': [1.68, 1.76, 1.71, 1.70, 1.84,
+                 2.26, 2.16, 2.06, 2.35, 2.00,
+                 1.76, 1.68, 1.88, 1.65, 1.79,
+                 1.93, 1.95, 1.93, 1.91, 2.13]
 }
 
-# Create DataFrame with the updated columns
-df = pd.DataFrame(Data, columns=['A', 'B', 'C', 'Hangtime'])
+# Create DataFrame
+df = pd.DataFrame(data)
 
-# Updated formula to include 'C' and interactions
-modelA = ols('Hangtime ~ A + B + C + A:B + A:C + B:C + A:B:C', data=df).fit()
-aov_tableA = sm.stats.anova_lm(modelA, typ=2)
+# Fit OLS model with numeric factors
+model = ols('Hangtime ~ A + B + A:B', data=df).fit()
 
-#Residual Analysis
-residuals = modelA.resid
-print(residuals)
+# Perform Type III ANOVA
+aov_table = sm.stats.anova_lm(model, typ=2)
+print("ANOVA Table:")
+print(aov_table)
 
-fig = plt.figure(figsize=(12,8))
-ax = fig.add_subplot(111)
+print(model.summary())
 
-normality_plot, stat = stats.probplot(residuals, plot=plt, rvalue=True)
-ax.set_title("Normal Probability Plot of Residuals")
-ax.set_xlabel("Theoretical Quantiles")
+# Define the function for Hangtime based on the regression coefficients
+def hangtime_function(x):
+    A, B = x  # Unpack A and B
+    intercept = 1.9065
+    beta_A = 0.1615
+    beta_B = -0.0455
+    beta_AB = -0.0525
+    print(intercept + beta_A * A + beta_B * B + beta_AB * A * B)
+    return -(intercept + beta_A * A + beta_B * B + beta_AB * A * B)  # Negative for maximization
 
+# Bounds for A and B, they can vary between -1 and 1
+bounds = [(-.5, 1.5), (-.5, 1.5)]
+
+# Initial guess for A and B
+x0 = [.5, -1]  # Start at A=0, B=0
+
+# Perform the optimization
+result = minimize(hangtime_function, x0, bounds=bounds)
+
+# Since we minimized the negative of the Hangtime function, we negate the result to get the maximum Hangtime
+optimal_A, optimal_B = result.x
+max_hangtime = -result.fun
+
+
+print(f"Optimal A: {optimal_A}")
+print(f"Optimal B: {optimal_B}")
+print(f"Maximum Hangtime: {max_hangtime}")
+
+# normality test
+
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+
+# Generate a Q-Q plot
+residuals = model.resid
+fig = sm.qqplot(residuals, line='s')
 plt.show()
 
 # Homogeneity of Variance check
-# if the p-value is small, reject H0 that the variances are equal
-# if the p-value is large, fail to reject H0 that the variances are equal
+# Levene's Test
+# H0: All variances are equal
 
-levene_A = stats.levene(df['Hangtime'][df['A'] == 1],
-                        df['Hangtime'][df['A'] == -1],)
+# Extract residuals for each factor level
 
-levene_B = stats.levene(df['Hangtime'][df['B'] == 1],
-                        df['Hangtime'][df['B'] == -1])
+stats.levene(df['Hangtime'][df['A'] == -1],
+                df['Hangtime'][df['A'] == 1])
 
-levene_C = stats.levene(df['Hangtime'][df['C'] == 1],
-                        df['Hangtime'][df['C'] == -1])
+stats.levene(df['Hangtime'][df['B'] == -1],
+                df['Hangtime'][df['B'] == 1])
 
-print(levene_A)
-print(levene_B)
-print(levene_C)
+print("Levene's Test for A:", stats.levene(df['Hangtime'][df['A'] == -1],
+                df['Hangtime'][df['A'] == 1]))
+print("Levene's Test for B:", stats.levene(df['Hangtime'][df['B'] == -1],
+                df['Hangtime'][df['B'] == 1]))
 
-# Box plots by factor Primer_type'
-# If the IRQ=75% quartitle - 25% quartile are very different, then question the constant variance assumption
-# If the F test p value is very small, we reject H0 and can use this box plot to identify the best factor level
+# Constant variance assumption check
 
-fig = plt.figure(figsize=(12,8))
+fig = plt.figure(figsize= (10, 10))
 ax = fig.add_subplot(111)
 
-ax.set_title("Box Plot of Hangtime by A - Length of Blade", fontsize=20)
-ax.set 
-
-data2 = [df['Hangtime'][df['A'] == 1],
-         df['Hangtime'][df['A'] == -1]]
-
-ax.boxplot(data2, labels=['A=1', 'A=-1'], showmeans = True)
-
-plt.xlabel("A - Length of Blade", fontsize=20)
-plt.ylabel("Hangtime", fontsize=20)
-
-plt.show()
-
-fig = plt.figure(figsize=(12,8))
-ax = fig.add_subplot(111)
-
-ax.set_title("Box Plot of Hangtime by B - Width Of Support", fontsize=20)
-ax.set 
-
-data2 = [df['Hangtime'][df['B'] == 1],
-         df['Hangtime'][df['B'] == -1]]
-
-ax.boxplot(data2, labels=['B=1', 'B=-1'], showmeans = True)
-
-plt.xlabel("B - Width of Support", fontsize=20)
-plt.ylabel("Hangtime", fontsize=20)
-
-plt.show()
-
-fig = plt.figure(figsize=(12,8))
-ax = fig.add_subplot(111)
-
-ax.set_title("Box Plot of Hangtime by C - Number of Paperclips", fontsize=20)
+ax.set_title('box plot of Hangtime by A')
 ax.set
 
-data2 = [df['Hangtime'][df['C'] == 1],
-            df['Hangtime'][df['C'] == -1]]
+data2 = [df['Hangtime'][df['A'] == -1], df['Hangtime'][df['A'] == 1]]
 
-ax.boxplot(data2, labels=['C=1', 'C=-1'], showmeans = True)
+ax.boxplot(data2,
+           labels= ['A= low', 'A=high'],
+           showmeans= True)
 
-plt.xlabel("C - Number of Paperclips", fontsize=20)
-plt.ylabel("Hangtime", fontsize=20)
+plt.xlabel("A")
+plt.ylabel("Hangtime")
 
 plt.show()
 
+fig = plt.figure(figsize= (10, 10))
+ax = fig.add_subplot(111)
 
-# testing the random order for collecting observations
-# Minitab calls the order variable, run order
-# the following code generate a random order
-# you should conduct your experiments using the random order generated
-# for example, the first number is 5, it means that you will run the setting 5 in the experimentation table
-# observation label 5 is primier type 3 and application method 2 (spraying)
-# the run observation 11 and so on until all observations are collected
-# import random (see the first cell)
-N = len(residuals)
-c = list(range(0, N))
-order = random.sample(c, N)
-print(order)
+ax.set_title('box plot of Hangtime by B')
+ax.set
+
+data2 = [df['Hangtime'][df['B'] == -1], df['Hangtime'][df['B'] == 1]]
+
+ax.boxplot(data2,
+              labels= ['B= low', 'B=high'],
+              showmeans= True)
+
+plt.xlabel("B")
+plt.ylabel("Hangtime")
+
+plt.show()
+
