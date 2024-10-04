@@ -1,3 +1,4 @@
+import random
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
@@ -27,7 +28,6 @@ df = pd.DataFrame(data)
 
 # Fit OLS model with numeric factors
 model = ols('Hangtime ~ A + B + A:B', data=df).fit()
-
 # Perform Type III ANOVA
 aov_table = sm.stats.anova_lm(model, typ=2)
 print("ANOVA Table:")
@@ -46,7 +46,7 @@ def hangtime_function(x):
     return -(intercept + beta_A * A + beta_B * B + beta_AB * A * B)  # Negative for maximization
 
 # Bounds for A and B, they can vary between -1 and 1
-bounds = [(-.5, 1.5), (-.5, 1.5)]
+bounds = [(-1, 1), (-1, 1)]
 
 # Initial guess for A and B
 x0 = [.5, -1]  # Start at A=0, B=0
@@ -126,3 +126,23 @@ plt.ylabel("Hangtime")
 
 plt.show()
 
+
+eij=model.resid
+
+N = len(eij)
+c = list(range(0, N))
+order = random.sample(c, N) # this should be replaced by the exact run order if the random order is not used
+print('order of observations/residuals is')
+print(order)
+
+eij=model.resid
+
+x = range(0,N) # from the first collected obs to the last in order
+y = eij[order] # assign run order (see the previous code box)
+
+plt.scatter(x, y)
+plt.xlabel('Order of observations')
+plt.ylabel('Residuals')
+plt.title('Residuals vs. Order of observations')
+plt.show()
+     
